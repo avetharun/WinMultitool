@@ -1,4 +1,4 @@
-# Windows Multitool
+# Windows Multitool <img src="assets/icon.png" width="32">
 
 A utility to manage and modify the default look of windows.
 The effect of this program is to emulate how [A riced Linux desktop](https://thatnixguy.github.io/posts/ricing/) looks
