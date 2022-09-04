@@ -1,6 +1,8 @@
 #ifndef __htgnative_imgui_format_h_
 #define __htgnative_imgui_format_h_
+#pragma warning( push )
 
+#pragma warning( disable : 4244 )
 
 #include "imgui.h"
 #include "imgui_internal.h"
@@ -259,9 +261,35 @@ namespace ImGui {
 		__TextColouredFormattedImplV(fmt, argPtr);
 		va_end(argPtr);
 	}
+	// Aligns text to the right of screen, regardless of if there's text there already. Returns the position of the first element.
+	ImVec2 TextAlignedRight(const char* fmt, ...) {
+		va_list argPtr;
+		va_start(argPtr, fmt);
+		std::string tmp = alib_strfmtsv(fmt, argPtr);
+		ImVec2 sz = ImGui::CalcTextSize(tmp.c_str());
+		ImVec2 cont_region = ImGui::GetWindowContentRegionMax();
+		ImVec2 cur = ImGui::GetCursorScreenPos();
+		ImVec2 pos = { cur.x + (cont_region.x - sz.x) , cur.y };
+		ImGui::GetForegroundDrawList()->AddText(pos, GetColorU32(ImGuiCol_Text), tmp.c_str());
+		va_end(argPtr);
+		return pos;
+	}
+	ImVec2 CalcTextAlignedRight(const char* fmt, ...) {
+		va_list argPtr;
+		va_start(argPtr, fmt);
+		std::string tmp = alib_strfmtsv(fmt, argPtr);
+		ImVec2 sz = ImGui::CalcTextSize(tmp.c_str());
+		ImVec2 cont_region = ImGui::GetWindowContentRegionMax();
+		ImVec2 cur = ImGui::GetCursorScreenPos();
+		ImVec2 pos = { cur.x + (cont_region.x - sz.x) , cur.y };
+		va_end(argPtr);
+		return pos;
+	}
 };
 typedef ImGui::ImRGB ImRGB;
 typedef ImGui::ImHSL ImHSL;
 typedef ImGui::ImHSV ImHSV;
+
+#pragma warning( pop )
 
 #endif

@@ -1,6 +1,14 @@
 #pragma once
 #ifndef __rosemary_project_imgui_uielement_h_
 #define __rosemary_project_imgui_uielement_h_
+
+#pragma warning( push )
+
+#pragma warning( disable : 4244 )
+#pragma warning( disable : 4267 )
+
+
+
 #include "imgui.h"
 #include "imgui_format.h"
 #include "imgui_texture.h"
@@ -627,5 +635,5 @@ namespace ImGui {
 	}
 };
 
-
+#pragma warning(pop)
 #endif

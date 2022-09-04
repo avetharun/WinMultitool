@@ -1,6 +1,7 @@
 #ifndef __htgnative_imgui_texture_h_impl__
 #define __htgnative_imgui_texture_h_impl__
-
+#pragma warning(push)
+#pragma warning(disable : 4267)
 #include <SDL2/SDL_opengl.h>
 
 #include "imgui.h"
@@ -93,6 +94,6 @@ namespace ImGui {
 
 };
 
-
+#pragma warning(pop)
 
 #endif

@@ -1,5 +1,5 @@
 #define SDL_MAIN_HANDLED
-
+#define IM_VEC2_CLASS_EXTRA
 #include <iostream>
 
 #include <alib.hpp>
@@ -16,6 +16,7 @@
 #include <WinUser.h>
 
 #include <cwerror.h>
+#include "globals/globals.h"
 
 #define NIM_ADD         0x00000000
 #define NIM_MODIFY      0x00000001
@@ -70,7 +71,7 @@
 #include <windows.h>
 #include <shellapi.h>
 #include <conio.h>
-
+#include <dwmapi.h>
 
 #define IDM_CONTEXT_EXIT 1001
 #define IDM_CONTEXT_HELP 1002
@@ -78,6 +79,7 @@
 #define WMAPP_NOTIFYCALLBACK (WM_APP + 1) // arbitrary value between WP_APP and 0xBFFF
 bool m_im_Initialized;
 bool m_ShowDefaultWindow = true;
+
 bool m_ShowHelpWindow = false;
 bool m_ShowTrayWindow = false;
 
@@ -169,6 +171,7 @@ struct DebugConsole {
     static void pushuf(std::string cstr) {
         if (&debugWindowConsoleText == nullptr) { return; }
         debugWindowConsoleText.append(cstr.c_str());
+        debugWindowConsoleText.append("\n");
     }
     static void pushf(std::string fmt, ...) {
         if (&debugWindowConsoleText == nullptr) { return; }
@@ -176,6 +179,7 @@ struct DebugConsole {
         va_start(args, fmt);
         debugWindowConsoleText.appendfv(fmt.c_str(), args);
         va_end(args);
+        debugWindowConsoleText.append("\n");
     }
     static void cwErrorHandler(const char* errs, uint32_t errid) {
         // errid not used
@@ -183,8 +187,36 @@ struct DebugConsole {
     }
 
 };
+void MinimizeWindowEx(HWND hWnd) {
+    ShowWindow(hWnd, SW_MINIMIZE);
+}
+void MaximizeWindowEx(HWND hWnd) {
+    ShowWindow(hWnd, SW_MAXIMIZE);
+}
+void FullHideWindowEx(HWND hWnd) {
 
+    long m_win_style = GetWindowLong(hWnd, GWL_STYLE);
+    m_win_style &= ~(WS_VISIBLE);    // this works - window become invisible 
 
+    m_win_style |= WS_EX_TOOLWINDOW;   // flags don't work - windows remains in taskbar
+    m_win_style &= ~(WS_EX_APPWINDOW);
+    ShowWindow(hWnd, SW_HIDE); // hide the window
+    SetWindowLong(hWnd, GWL_STYLE, m_win_style); // set the style
+    ShowWindow(hWnd, SW_SHOW); // show the window for the new style to come into effect
+    ShowWindow(hWnd, SW_HIDE); // hide the window so we can't see it
+}
+ImVec2 getFullScreenSize() {
+    return {
+        (float)GetSystemMetrics(SM_CXFULLSCREEN),
+        (float)GetSystemMetrics(SM_CYFULLSCREEN)
+    };
+}
+ImVec2 getMaximizedWindowSize() {
+    return {
+        (float)GetSystemMetrics(SM_CXMAXIMIZED) - 12,
+        (float)GetSystemMetrics(SM_CYMAXIMIZED) 
+    };
+}
 int main() { 
     // Setup SDL
     // (Some versions of SDL before <2.0.10 appears to have performance/stalling issues on a minority of Windows systems,
@@ -206,32 +238,12 @@ int main() {
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
     SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
-    SDL_Window* window = SDL_CreateWindow("Windows Multitool", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 0, 0, window_flags);
+    SDL_Window* window = SDL_CreateWindow("Windows Multitool Proxy Window", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 0, 0, window_flags);
     HWND hWnd = GetActiveWindow();
     g_hInst = (HINSTANCE)GetWindowLong(hWnd, GWL_HINSTANCE);
     HWND chWnd = GetConsoleWindow();
     SDL_GLContext gl_context = SDL_GL_CreateContext(window);
 
-    long m_win_style = GetWindowLong(hWnd, GWL_STYLE);
-    m_win_style &= ~(WS_VISIBLE);    // this works - window become invisible 
-    
-    m_win_style|= WS_EX_TOOLWINDOW;   // flags don't work - windows remains in taskbar
-    m_win_style&= ~(WS_EX_APPWINDOW);
-    
-    long m_con_style = GetWindowLong(chWnd, GWL_STYLE);
-    m_con_style &= ~(WS_VISIBLE);    // this works - window become invisible 
-    
-    m_con_style |= WS_EX_TOOLWINDOW;   // flags don't work - windows remains in taskbar
-    m_con_style &= ~(WS_EX_APPWINDOW);
-    ShowWindow(hWnd, SW_HIDE); // hide the window
-    SetWindowLong(hWnd, GWL_STYLE, m_win_style); // set the style
-    ShowWindow(hWnd, SW_SHOW); // show the window for the new style to come into effect
-    ShowWindow(hWnd, SW_HIDE); // hide the window so we can't see it
-
-    ShowWindow(chWnd, SW_HIDE); // hide the window
-    SetWindowLong(chWnd, GWL_STYLE, m_con_style); // set the style
-    ShowWindow(chWnd, SW_SHOW); // show the window for the new style to come into effect
-    ShowWindow(chWnd, SW_HIDE); // hide the window so we can't see it
 
     SDL_GL_MakeCurrent(window, gl_context);
     SDL_GL_SetSwapInterval(1); // Enable vsync
@@ -265,11 +277,11 @@ int main() {
     ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-
     cwError::onError = DebugConsole::cwErrorHandler;
-
     const wchar_t CLASS_NAME[] = L"WinMultitool Status Tray Manager";
-
+    auto _ranges = new ImWchar[2]{ 0x0020, 0xFFEF };
+    M_Globals::default_font = io.Fonts->AddFontDefault();
+    M_Globals::symbol_font = io.Fonts->AddFontFromFileTTF("assets/symbols.ttf",18, 0, _ranges);
     WNDCLASS wc = { };
 
     wc.lpfnWndProc = WndProc;
@@ -307,9 +319,13 @@ int main() {
 
     ImGui::GetStyle().WindowMinSize = { 512, 256 };
 
-
+    int __windowcheck_id = 0;
     while (!m_beginExit)
     {
+        __windowcheck_id++;
+        if (__windowcheck_id == 10) {
+            FullHideWindowEx(hWnd);
+        }
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
@@ -327,10 +343,15 @@ int main() {
         if (m_ShowDefaultWindow) {
             m_showMainWindow();
         }
+#if (!NDEBUG)
+        // close program when main window is closed if debug build
+        else {
+            break;
+        }
+#endif
         if (m_ShowHelpWindow) {
             m_showHelpWindow();
-        }
-
+        } 
         // Rendering
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -363,16 +384,73 @@ int main() {
 
     return 0;
 }
-
+ImWindowData m_main_d, m_help_d;
 void m_showHelpWindow() {
 
     if (ImGui::Begin("Windows Multitool Help Window", &m_ShowHelpWindow, ImGuiWindowFlags_NoCollapse)) {
+        ImGui::GetCurrentWindow()->UserData = &m_help_d;
         ImGui::End();
     }
 }
+
+
+float menu_pane_percent = 100.0f;
 void m_showMainWindow() {
-    if (ImGui::Begin("Windows Multitool", &m_ShowDefaultWindow, ImGuiWindowFlags_NoCollapse)) {
+    ImGuiIO& io = ImGui::GetIO();
+    if (m_main_d.need_resize) {
+        if (m_main_d.maximized) {
+            ImGui::SetNextWindowPos({ 0,0 });
+            ImGui::SetNextWindowSize(getMaximizedWindowSize());
+        }
+        else {
+            ImGui::SetNextWindowPos(m_main_d.m_FloatingMin);
+            ImGui::SetNextWindowSize(m_main_d.m_FloatingSize);
+            DebugConsole::pushuf("Setting restored down size..");
+        }
+        m_main_d.need_resize = false;
+    }
+    
+    if (ImGui::Begin("\tWindows Multitool", &m_ShowDefaultWindow, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoTitleBar 
+        | ( (m_main_d.maximized) ? (ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove) : 0)
+    )) {
+        ImGui::GetCurrentWindow()->UserData = &m_main_d;
+        ImGui::Text("FPS: %.2f", io.Framerate);
         ImGui::TextMulticolored(DebugConsole::debugWindowConsoleText.c_str());
+        ImGuiStyle s_tmp = ImGui::GetStyle();
+        ImGuiStyle& s = ImGui::GetStyle();
+        ImVec2 menu_pane_left = ImGui::GetWindowPos();
+        ImVec2 menu_pane_right = { alib_clamp(alib_percentf(ImGui::GetWindowWidth() * 0.4f, menu_pane_percent), 256.0f, 512.0f), ImGui::GetWindowHeight()};
+        ImGui::BeginMenuBar();
+        s.WindowPadding = { 0,0 };
+        s.Colors[ImGuiCol_Button] = { 0,0,0,0 };
+        ImVec2 pos_tmp = ImGui::GetCursorPos();
+
+        ImGui::PushFont(M_Globals::symbol_font);
+        ImVec2 pos = ImGui::CalcTextAlignedRight("Q P #\t ");
+        ImGui::SetCursorScreenPos(pos);
+        bool dock_window = ImGui::SmallButton("Q##__dock_window");
+        ImGui::PushID("__maximize_window");
+            bool maximize = ImGui::SmallButton((m_main_d.maximized)?"P" : ";"); ImGui::PopID();
+        ImGui::PushID("__close_window");
+            m_ShowDefaultWindow = !ImGui::SmallButton("#"); ImGui::PopID();
+        ImGui::SetCursorPos({pos_tmp.x - 8, pos_tmp.y});
+        bool menu_drawer = ImGui::Button(u8"¡");
+        ImGui::PopFont();
+        ImGui::TextMulticolored("\\db7991]Windows Multitool\\]");
+
+        ImGui::EndMenuBar();
+        if (dock_window) {
+            MinimizeWindowEx(GetActiveWindow());
+        }
+        if (maximize) {
+            if (!m_main_d.maximized) {
+                // store the size of the window
+                m_main_d.m_FloatingMin = ImGui::GetWindowPos();
+                m_main_d.m_FloatingSize = ImGui::GetWindowSize();
+            }
+            m_main_d.need_resize = true;
+            m_main_d.maximized = !m_main_d.maximized;
+        }
         ImGui::End();
     }
 }

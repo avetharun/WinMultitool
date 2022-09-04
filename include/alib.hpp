@@ -724,7 +724,7 @@ _ALIB_FQUAL char* alib_strfmt(const char* fmt, ...) {
     std::string out;
     va_start(args, fmt);
     size_t bufsz = 0;
-    bufsz = snprintf(NULL, 0, fmt, args);
+    bufsz = vsnprintf(NULL, 0, fmt, args);
     char* _buf = new char[bufsz] {'\0'};
     vsprintf(_buf, fmt, args);
     out.append(_buf);
@@ -736,11 +736,20 @@ _ALIB_FQUAL std::string alib_strfmts(const char* fmt, ...) {
     std::string out;
     va_start(args, fmt);
     size_t bufsz = 0;
-    bufsz = snprintf(NULL, 0, fmt, args);
+    bufsz = vsnprintf(NULL, 0, fmt, args);
     char* _buf = new char[bufsz] {'\0'};
     vsprintf(_buf, fmt, args);
     out.append(_buf);
     va_end(args);
+    return out;
+}
+_ALIB_FQUAL std::string alib_strfmtsv(const char* fmt, va_list args) {
+    std::string out;
+    size_t bufsz = 0;
+    bufsz = vsnprintf(NULL, 0, fmt, args);
+    char* _buf = new char[bufsz] {'\0'};
+    vsprintf(_buf, fmt, args);
+    out.append(_buf);
     return out;
 }
 _ALIB_FQUAL const char* alib_chrrepl(const char* in, char match, char repl_value) {

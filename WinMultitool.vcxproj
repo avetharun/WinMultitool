@@ -148,6 +148,7 @@
     <ClCompile Include="sources\imgui_widgets.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="globals\globals.h" />
     <ClInclude Include="include\alib.hpp" />
     <ClInclude Include="include\cwerror.h" />
     <ClInclude Include="include\imconfig.h" />
@@ -166,6 +167,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\aodman\htg-native.NativeActivity\symbol_icon_src.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
